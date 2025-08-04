@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>RAJ's Chess</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    body {
+      background: linear-gradient(135deg, #c2e9fb 0%, #a1c4fd 100%);
+      font-family: 'Comic Sans MS', 'Comic Sans', cursive, sans-serif;
+      margin: 0;
+      padding: 0;
+      text-align: center;
+      color: #2d2d2d;
+    }
+    h1 {
+      margin-top: 30px;
+      font-size: 2.5em;
+      letter-spacing: 2px;
+      color: #337ab7;
+      text-shadow: 2px 2px 6px #fff;
+    }
+    #board {
+      margin: 30px auto;
+      display: grid;
+      grid-template-columns: repeat(8, 50px);
+      grid-template-rows: repeat(8, 50px);
+      border: 6px solid #337ab7;
+      background: #fff;
+      box-shadow: 0 8px 24px rgba(50,150,255,0.18);
+      width: 400px;
+      height: 400px;
+    }
+    .square {
+      width: 50px;
+      height: 50px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 2em;
+      cursor: pointer;
+      user-select: none;
+    }
+    .light {
+      background: #f6f6f6;
+    }
+    .dark {
+      background: #8ac6d1;
+    }
+    .selected {
+      outline: 3px solid #ffb347;
+      z-index: 2;
+    }
+    .move {
+      background: #ffe082 !important;
+    }
+    #info {
+      margin-bottom: 20px;
+      font-size: 1.1em;
+      color: #5b5b5b;
+    }
+    @media (max-width: 500px) {
+      #board {
+        width: 98vw;
+        height: 98vw;
+        max-width: 360px;
+        max-height: 360px;
+        grid-template-columns: repeat(8, 1fr);
+        grid-template-rows: repeat(8, 1fr);
+      }
+      .square {
+        font-size: 1.4em;
+      }
+    }
+    .footer {
+      margin-top: 30px;
+      color: #337ab7;
+      font-size: 1.1em;
+      opacity: 0.7;
+    }
+    button {
+      background: #8ac6d1;
+      border: none;
+      color: #337ab7;
+      font-size: 1em;
+      border-radius: 6px;
+      padding: 8px 18px;
+      margin: 8px;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    button:hover {
+      background: #337ab7;
+      color: #fff;
+    }
+  </style>
+</head>
+<body>
+  <h1>RAJ's Chess</h1>
+  <div id="info">Have fun playing chess! Click a piece, then click where you want to move it.</div>
+  <div id="board"></div>
+  <div>
+    <button onclick="resetBoard()">Reset Board</button>
+  </div>
+  <div class="footer">Made for RAJ • Have fun and play fair! ♟️</div>
+  <script>
+    // Unicode chess piece symbols
+    const PIECES = {
+      'r': '♜', 'n': '♞', 'b': '♝', 'q': '♛', 'k': '♚', 'p': '♟',
+      'R': '♖', 'N': '♘', 'B': '♗', 'Q': '♕', 'K': '♔', 'P': '♙'
+    };
+
+    // Starting position in FEN
+    let board = [
+      ['r','n','b','q','k','b','n','r'],
+      ['p','p','p','p','p','p','p','p'],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['','','','','','','',''],
+      ['P','P','P','P','P','P','P','P'],
+      ['R','N','B','Q','K','B','N','R']
+    ];
+
+    let selected = null;
+    let possibleMoves = [];
+
+    // Helper functions for board logic
+    function isWhite(piece) {
+      return piece && piece === piece.toUpperCase();
+    }
+    function isBlack(piece) {
+      return piece && piece === piece.toLowerCase();
+    }
+
+    function renderBoard() {
+      const boardDiv = document.getElementById('board');
+      boardDiv.innerHTML = '';
+      for (let row = 0; row < 8; row++) {
+        for (let col = 0; col < 8; col++) {
+          const square = document.createElement('div');
+          square.className = 'square ' + ((row + col) % 2 === 0 ? 'light' : 'dark');
+          square.dataset.row = row;
+          square.dataset.col = col;
+          if (selected && selected[0] === row && selected[1] === col) {
+            square.classList.add('selected');
+          }
+          if (possibleMoves.some(([r, c]) => r === row && c === col)) {
+            square.classList.add('move');
+          }
+          if (board[row][col]) {
+            square.textContent = PIECES[board[row][col]];
+          }
+          square.onclick = () => onSquareClick(row, col);
+          boardDiv.appendChild(square);
+        }
+      }
+    }
+
+    function onSquareClick(row, col) {
+      if (selected) {
+        // If clicked on own piece, change selection
+        if (board[row][col] && (
+            (isWhite(board[row][col]) && isWhite(board[selected[0]][selected[1]])) ||
+            (isBlack(board[row][col]) && isBlack(board[selected[0]][selected[1]]))
+          )) {
+          selected = [row, col];
+          possibleMoves = getMoves(row, col, board);
+          renderBoard();
+          return;
+        }
+        // If clicked on a move square
+        if (possibleMoves.some(([r, c]) => r === row && c === col)) {
+          board[row][col] = board[selected[0]][selected[1]];
+          board[selected[0]][selected[1]] = '';
+          selected = null;
+          possibleMoves = [];
+          renderBoard();
+          return;
+        }
+        // Clicked somewhere else: deselect
+        selected = null;
+        possibleMoves = [];
+        renderBoard();
+      } else {
+        // Select a piece
+        if (board[row][col]) {
+          selected = [row, col];
+          possibleMoves = getMoves(row, col, board);
+          renderBoard();
+        }
+      }
+    }
+
+    // Super simple move generation (legal moves not enforced, just piece movement rules)
+    function getMoves(row, col, b) {
+      const piece = b[row][col];
+      if (!piece) return [];
+      let moves = [];
+      const directions = {
+        'N': [[-2,-1],[-2,1],[-1,-2],[-1,2],[1,-2],[1,2],[2,-1],[2,1]],
+        'B': [[-1,-1],[-1,1],[1,-1],[1,1]],
+        'R': [[-1,0],[1,0],[0,-1],[0,1]],
+        'Q': [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]],
+        'K': [[-1,0],[1,0],[0,-1],[0,1],[-1,-1],[-1,1],[1,-1],[1,1]]
+      };
+      if (piece.toUpperCase() === 'P') {
+        let dir = isWhite(piece) ? -1 : 1;
+        let startRow = isWhite(piece) ? 6 : 1;
+        // Forward move
+        if (!b[row+dir]?.[col]) moves.push([row+dir, col]);
+        // Double move from start
+        if (row === startRow && !b[row+dir]?.[col] && !b[row+2*dir]?.[col]) moves.push([row+2*dir, col]);
+        // Captures
+        for (let dc of [-1,1]) {
+          let r = row+dir, c = col+dc;
+          if (b[r]?.[c] && ((isWhite(piece)&&isBlack(b[r][c]))||(isBlack(piece)&&isWhite(b[r][c])))) moves.push([r, c]);
+        }
+      }
+      if (piece.toUpperCase() === 'N') {
+        for (let [dr, dc] of directions.N) {
+          let r = row+dr, c = col+dc;
+          if (b[r]?.[c] && ((isWhite(piece)&&isBlack(b[r][c]))||(isBlack(piece)&&isWhite(b[r][c])))) moves.push([r, c]);
+          else if (b[r]?.[c] === '') moves.push([r, c]);
+        }
+      }
+      if (piece.toUpperCase() === 'B' || piece.toUpperCase() === 'Q') {
+        for (let [dr, dc] of directions.B) {
+          for (let i=1; i<8; ++i) {
+            let r=row+dr*i, c=col+dc*i;
+            if (b[r]?.[c] === '') moves.push([r, c]);
+            else if (b[r]?.[c] && ((isWhite(piece)&&isBlack(b[r][c]))||(isBlack(piece)&&isWhite(b[r][c])))) { moves.push([r, c]); break; }
+            else break;
+          }
+        }
+      }
+      if (piece.toUpperCase() === 'R' || piece.toUpperCase() === 'Q') {
+        for (let [dr, dc] of directions.R) {
+          for (let i=1; i<8; ++i) {
+            let r=row+dr*i, c=col+dc*i;
+            if (b[r]?.[c] === '') moves.push([r, c]);
+            else if (b[r]?.[c] && ((isWhite(piece)&&isBlack(b[r][c]))||(isBlack(piece)&&isWhite(b[r][c])))) { moves.push([r, c]); break; }
+            else break;
+          }
+        }
+      }
+      if (piece.toUpperCase() === 'K') {
+        for (let [dr, dc] of directions.K) {
+          let r=row+dr, c=col+dc;
+          if (b[r]?.[c] && ((isWhite(piece)&&isBlack(b[r][c]))||(isBlack(piece)&&isWhite(b[r][c])))) moves.push([r, c]);
+          else if (b[r]?.[c] === '') moves.push([r, c]);
+        }
+      }
+      // Remove moves out of bounds
+      moves = moves.filter(([r,c]) => r>=0 && r<8 && c>=0 && c<8);
+      return moves;
+    }
+
+    function resetBoard() {
+      board = [
+        ['r','n','b','q','k','b','n','r'],
+        ['p','p','p','p','p','p','p','p'],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['','','','','','','',''],
+        ['P','P','P','P','P','P','P','P'],
+        ['R','N','B','Q','K','B','N','R']
+      ];
+      selected = null;
+      possibleMoves = [];
+      renderBoard();
+    }
+
+    // Start
+    renderBoard();
+  </script>
+</body>
+</html>
